@@ -79,7 +79,7 @@ begin
     shifted <= shift;
     read <= 0;
 
-    if(PRESETn & shifted)
+    if(shifted)
         ID <= {ID[NBIT-2:0], dout};
 
     if(~PRESETn) begin
@@ -87,22 +87,20 @@ begin
         state <= 0;
         shifted <= 0;
 
-    end else if(~READY & div==0 & state<NSTATE-1) begin
+    end else if(~READY & div==0 & state!=NSTATE-1) begin
         state <= state + 1;
-
-        // pulse READ once, then SHIFT NBIT times, then one more state to collect result
 
         if(state==0)
             read <= 1;
 
-        else if(state<=1+NBIT-1)
+        else if(state<1+NBIT)
             shift <= 1;
     end
 end
 
 /* xilinx documentation "7 Series FPGAs Configuration User Guide" (UG470) v1.17 page 115
  * Table 5-42
- * seems to show the same high bit of DNA appears on two consequtive ticks,
+ * seems to show the same high bit of DNA appears on two consecutive ticks,
  * after READ and after first SHIFT.
  */
 DNA_PORT #(
