@@ -30,7 +30,7 @@ module DNA_PORT #(
 
        end else if(read_in == 1'b0 & shift_in == 1'b1) begin
             dna_val <= {dna_val[MAX_DNA_BITS-2 : 0], din_in};
-            dout_out <= dna_val[MAX_DNA_BITS-1];
+            dout_out <= dna_val[MAX_DNA_BITS-2];
 
         end
     end

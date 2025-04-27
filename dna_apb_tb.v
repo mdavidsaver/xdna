@@ -21,7 +21,7 @@ genvar i;
 generate
 for(i = 0; i<N; i++)
     dna_apb #(
-        .SIM_DNA_VALUE(57'h123456789abcdef),
+        .SIM_DNA_VALUE(57'h24ec844c05e854),
         .PCLK_DIV(1<<i) // 1, 2, 4
     ) dut0(
         .PCLK(PCLK),
@@ -58,17 +58,17 @@ initial begin
 
     #10
     @(posedge PCLK)
-    apb_read(0, 0, 32'h01234567);
-    apb_read(0, 0, 32'h01234567);
-    apb_read(0, 1, 32'h89abcdef);
+    apb_read(0, 0, 32'h0024ec84);
+    apb_read(0, 0, 32'h0024ec84);
+    apb_read(0, 4, 32'h4c05e854);
 
-    apb_read(1, 0, 32'h01234567);
-    apb_read(1, 0, 32'h01234567);
-    apb_read(1, 1, 32'h89abcdef);
+    apb_read(1, 0, 32'h0024ec84);
+    apb_read(1, 0, 32'h0024ec84);
+    apb_read(1, 4, 32'h4c05e854);
 
-    apb_read(2, 0, 32'h01234567);
-    apb_read(2, 0, 32'h01234567);
-    apb_read(2, 1, 32'h89abcdef);
+    apb_read(2, 0, 32'h0024ec84);
+    apb_read(2, 0, 32'h0024ec84);
+    apb_read(2, 4, 32'h4c05e854);
     #10
     $finish();
 end
