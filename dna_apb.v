@@ -5,13 +5,7 @@
 
 // TODO: Figure out where this X_INTERFACE_INFO business is actually documented.
 //       How to specify window size?
-module dna_apb #(
-    parameter [56:0] SIM_DNA_VALUE = 57'h0,
-    parameter [31:0] PADDR_MASK = 32'h000000ff,
-    // divide down PCLK to mean undocumented <= 100MHz requirement
-    // asserted in LBNL Bedrock source.
-    parameter PCLK_DIV = 1
-) (
+module dna_apb(
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 PCLK CLK" *)
     (* X_INTERFACE_PARAMETER = "ASSOCIATED_RESET PRESETn, ASSOCIATED_BUSIF S_APB" *)
     input PCLK,
@@ -54,7 +48,7 @@ begin
     if(PRESETn & PSEL) begin
         if(~PWRITE) begin
             PREADY <= DNA_READY;
-            case (PADDR & PADDR_MASK)
+            case (PADDR & 32'h000000fc)
             0: PRDATA <= {7'h00, DNA[56:32]};
             4: PRDATA <= DNA[31:0];
             8: PRDATA <= 32'hdeadbeef;
