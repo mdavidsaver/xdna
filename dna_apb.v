@@ -38,18 +38,13 @@ module dna_apb #(
     (* MARK_DEBUG="TRUE" *)
     output reg [31:0] PRDATA, // Read Data (required)
     (* X_INTERFACE_INFO = "xilinx.com:interface:apb:1.0 S_APB PSLVERR" *)
-    output PSLVERR // Slave Error Response (required)
+    output PSLVERR, // Slave Error Response (required)
+
+    input [56:0] DNA,
+    input DNA_READY
 );
 
 assign PSLVERR = 1'b0; // always all right!
-
-reg [$clog2(PCLK_DIV)-1:0] div = 0;
-
-always @(posedge PCLK) begin
-    div <= div + 1;
-    if(~PRESETn | div==PCLK_DIV-1)
-        div <= 0;
-end
 
 always @(posedge PCLK)
 begin
@@ -58,73 +53,14 @@ begin
 
     if(PRESETn & PSEL) begin
         if(~PWRITE) begin
-            PREADY <= READY;
+            PREADY <= DNA_READY;
             case (PADDR & PADDR_MASK)
-            0: PRDATA <= {7'h00, ID[56:32]};
-            4: PRDATA <= ID[31:0];
+            0: PRDATA <= {7'h00, DNA[56:32]};
+            4: PRDATA <= DNA[31:0];
             8: PRDATA <= 32'hdeadbeef;
             endcase
         end
     end
 end
-
-// number of bits in DNA_PORT shift register
-localparam NBIT = 57;
-localparam NSTATE = NBIT + 3;
-
-(* MARK_DEBUG="TRUE" *)
-reg [$clog2(NSTATE)-1:0] state = 0;
-wire READY = state == NSTATE-1;
-
-(* MARK_DEBUG="TRUE" *)
-reg shift=0, shifted=0, read=0;
-(* MARK_DEBUG="TRUE" *)
-wire dout;
-(* MARK_DEBUG="TRUE" *)
-reg [NBIT-1:0] ID;
-
-always @(posedge PCLK)
-begin
-    shift <= 0;
-    shifted <= shift;
-    read <= 0;
-
-    if(shifted)
-        ID <= {ID[NBIT-2:0], dout};
-
-    if(~PRESETn) begin
-        ID <= 0;
-        state <= 0;
-        shifted <= 0;
-
-    end else if(~READY & div==0 & state!=NSTATE-1) begin
-        state <= state + 1;
-
-        if(state==0)
-            read <= 1;
-
-        if(state<NBIT)
-            shift <= 1;
-    end
-end
-
-/* xilinx documentation "7 Series FPGAs Configuration User Guide" (UG470) v1.17 page 115
- * Table 5-42
- * seems to show the same high bit of DNA appears on two consecutive ticks,
- * after READ and after first SHIFT.
- */
-DNA_PORT #(
-    .SIM_DNA_VALUE(SIM_DNA_VALUE)
-) dna_i (
-    .CLK(PCLK),
-    .READ(read),
-    .SHIFT(shift),
-    .DOUT(dout),
-`ifdef SIM
-    .DIN(1'bx)
-`else
-    .DIN(1'b0)
-`endif
-);
 
 endmodule

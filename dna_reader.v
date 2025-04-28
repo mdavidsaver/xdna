@@ -9,8 +9,8 @@ module dna_reader #(
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 dna_CLK RST" *)
     (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_LOW" *)
     input rst_n,
-    output [NBIT-1:0] ID,
-    output READY
+    output [NBIT-1:0] DNA,
+    output DNA_READY
 );
 
 reg [$clog2(PCLK_DIV)-1:0] div = 0;
@@ -27,14 +27,14 @@ localparam NSTATE = NBIT + 3;
 
 (* MARK_DEBUG="TRUE" *)
 reg [$clog2(NSTATE)-1:0] state = 0;
-wire READY = state == NSTATE-1;
+wire DNA_READY = state == NSTATE-1;
 
 (* MARK_DEBUG="TRUE" *)
 reg shift=0, shifted=0, read=0;
 (* MARK_DEBUG="TRUE" *)
 wire dout;
 (* MARK_DEBUG="TRUE" *)
-reg [NBIT-1:0] ID;
+reg [NBIT-1:0] DNA;
 
 always @(posedge clk)
 begin
@@ -43,14 +43,14 @@ begin
     read <= 0;
 
     if(shifted)
-        ID <= {ID[NBIT-2:0], dout};
+        DNA <= {DNA[NBIT-2:0], dout};
 
     if(~rst_n) begin
-        ID <= 0;
+        DNA <= 0;
         state <= 0;
         shifted <= 0;
 
-    end else if(~READY & div==0 & state!=NSTATE-1) begin
+    end else if(~DNA_READY & div==0 & state!=NSTATE-1) begin
         state <= state + 1;
 
         if(state==0)

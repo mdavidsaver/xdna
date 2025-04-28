@@ -19,8 +19,8 @@ for(i = 0; i<3; i++)
     ) dna (
         .clk(PCLK),
         .rst_n(PRESETn),
-        .ID(ID[i]),
-        .READY(ready[i])
+        .DNA(ID[i]),
+        .DNA_READY(ready[i])
     );
 endgenerate
 
@@ -45,6 +45,12 @@ initial begin
     $display("div 1 %x", ID[0]);
     $display("div 2 %x", ID[1]);
     $display("div 4 %x", ID[2]);
+    if(ID[0]!==57'h24ec844c05e854)
+        $stop;
+    if(ID[1]!==57'h24ec844c05e854)
+        $stop;
+    if(ID[2]!==57'h24ec844c05e854)
+        $stop;
 
     #100
     $finish();

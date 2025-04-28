@@ -1,50 +1,45 @@
 `timescale  1 ps / 1 ps
-
-module dna_apb_tb();
-
+module test;
 
 reg PCLK = 0;
 always #5000 PCLK <= ~PCLK;
 
 reg PRESETn = 1;
 
-// simulate bus with 3 devices
-localparam N = 3;
-
-reg [N-1:0] PSEL = 0;
+reg PSEL = 0;
 reg PENABLE;
 reg [31:0] PADDR;
-wire PREADYx [N];
-wire [31:0] PRDATAx [N];
+wire PREADY;
+wire [31:0] PRDATA;
 
-genvar i;
-generate
-for(i = 0; i<N; i++)
-    dna_apb #(
-        .SIM_DNA_VALUE(57'h24ec844c05e854),
-        .PCLK_DIV(1<<i) // 1, 2, 4
-    ) dut0(
-        .PCLK(PCLK),
-        .PRESETn(PRESETn),
-        .PSEL(PSEL[i]),
-        .PADDR(PADDR),
-        .PENABLE(PENABLE),
-        .PWRITE(1'b0),
-        .PREADY(PREADYx[i]),
-        .PRDATA(PRDATAx[i]),
-        .PWDATA(32'hxxxxxxxx),
-        .PSLVERR()
-    );
-endgenerate
+wire [56:0] DNA;
+wire DNA_READY;
 
-wire PREADY = PSEL&1 ? PREADYx[0]
-            : PSEL&2 ? PREADYx[1]
-            : PSEL&4 ? PREADYx[2]
-            : 1'bx;
-wire [31:0] PRDATA = PSEL&1 ? PRDATAx[0]
-                    : PSEL&2 ? PRDATAx[1]
-                    : PSEL&4 ? PRDATAx[2]
-                    : 32'bxxxxxxxx;
+dna_apb #(
+    .SIM_DNA_VALUE(57'h24ec844c05e854)
+) dut0(
+    .PCLK(PCLK),
+    .PRESETn(PRESETn),
+    .PSEL(PSEL),
+    .PADDR(PADDR),
+    .PENABLE(PENABLE),
+    .PWRITE(1'b0),
+    .PREADY(PREADY),
+    .PRDATA(PRDATA),
+    .PWDATA(32'hxxxxxxxx),
+    .PSLVERR(),
+    .DNA(DNA),
+    .DNA_READY(DNA_READY)
+);
+
+dna_reader #(
+    .SIM_DNA_VALUE(57'h24ec844c05e854)
+) dna (
+    .clk(PCLK),
+    .rst_n(PRESETn),
+    .DNA(DNA),
+    .DNA_READY(DNA_READY)
+);
 
 initial begin
     #10000000
@@ -54,30 +49,24 @@ end
 
 initial begin
     $dumpfile(`VCD);
-    $dumpvars(0,dna_apb_tb);
+    $dumpvars(0,test);
 
     #10
     @(posedge PCLK)
-    apb_read(0, 0, 32'h0024ec84);
-    apb_read(0, 0, 32'h0024ec84);
-    apb_read(0, 4, 32'h4c05e854);
+    apb_read(0, 32'h0024ec84);
+    apb_read(0, 32'h0024ec84);
+    apb_read(4, 32'h4c05e854);
+    apb_read(8, 32'hdeadbeef);
 
-    apb_read(1, 0, 32'h0024ec84);
-    apb_read(1, 0, 32'h0024ec84);
-    apb_read(1, 4, 32'h4c05e854);
-
-    apb_read(2, 0, 32'h0024ec84);
-    apb_read(2, 0, 32'h0024ec84);
-    apb_read(2, 4, 32'h4c05e854);
     #10
     $finish();
 end
 
-task apb_read(input [1:0] sel, [31:0] addr, expected);
+task apb_read([31:0] addr, expected);
 begin
     $display("apb_read %x, expecting %x", addr, expected);
     @(posedge PCLK)
-    PSEL <= 1<<sel;
+    PSEL <= 1;
     PADDR <= addr;
     PENABLE <= 0;
     @(posedge PCLK)
