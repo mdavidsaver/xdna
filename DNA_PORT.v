@@ -1,3 +1,6 @@
+/* Simulation of DNA_PORT primitive.
+ * Tested against kintex-7 behavior
+ */
 `timescale  1 ps / 1 ps
 module DNA_PORT #(
     parameter [56:0] SIM_DNA_VALUE = 57'h0
