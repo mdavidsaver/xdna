@@ -15,9 +15,7 @@ wire [31:0] PRDATA;
 wire [56:0] DNA;
 wire DNA_READY;
 
-dna_apb #(
-    .SIM_DNA_VALUE(57'h24ec844c05e854)
-) dut0(
+dna_apb dut0(
     .PCLK(PCLK),
     .PRESETn(PRESETn),
     .PSEL(PSEL),
