@@ -35,10 +35,8 @@ module dna_apb #(
     (* MARK_DEBUG="TRUE" *)
     output reg [31:0] PRDATA, // Read Data (required)
     (* X_INTERFACE_INFO = "xilinx.com:interface:apb:1.0 S_APB PSLVERR" *)
-    output PSLVERR // Slave Error Response (required)
+    output reg PSLVERR = 0 // Slave Error Response (required)
 );
-
-assign PSLVERR = 1'b0; // always all right!
 
 wire [56:0] DNA;
 wire DNA_READY;
@@ -47,6 +45,7 @@ always @(posedge PCLK)
 begin
     PRDATA <= 32'hffffffff;
     PREADY <= 0;
+    PSLVERR <= 0;
 
     if(PRESETn & PSEL) begin
         if(~PWRITE) begin
@@ -55,6 +54,7 @@ begin
             0: PRDATA <= {7'h00, DNA[56:32]};
             4: PRDATA <= DNA[31:0];
             8: PRDATA <= 32'hdeadbeef;
+            default: PSLVERR <= 1;
             endcase
         end
     end
