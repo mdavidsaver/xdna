@@ -1,6 +1,6 @@
 `timescale  1 ps / 1 ps
 module dna_reader #(
-    parameter [NBIT-1:0] SIM_DNA_VALUE = 57'h0,
+    parameter [56:0] SIM_DNA_VALUE = 57'h0,
     parameter PCLK_DIV = 1
 ) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 dna_CLK CLK" *)
@@ -9,7 +9,7 @@ module dna_reader #(
     (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 dna_CLK RST" *)
     (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_LOW" *)
     input rst_n,
-    output reg [NBIT-1:0] DNA,
+    output reg [56:0] DNA,
     output DNA_READY
 );
 

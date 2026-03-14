@@ -1,5 +1,8 @@
 `timescale  1 ns / 1 ps
-module dna_axi(
+module dna_axi #(
+    parameter [56:0] SIM_DNA_VALUE = 57'h0,
+    parameter PCLK_DIV = 1
+) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 ACLK CLK" *)
     (* X_INTERFACE_PARAMETER = "ASSOCIATED_RESET ARESETn, ASSOCIATED_BUSIF S_AXI" *)
     input ACLK,
@@ -25,11 +28,11 @@ module dna_axi(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RVALID" *)
     output reg RVALID = 0, // Read valid (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
-    input RREADY, // Read ready (optional)
-
-    input [56:0] DNA,
-    input DNA_READY
+    input RREADY // Read ready (optional)
 );
+
+wire [56:0] DNA;
+wire DNA_READY;
 
 reg [7:0] addr;
 reg addrd = 0;
@@ -62,5 +65,15 @@ always @(posedge ACLK) begin
         addrd <= 0;
     end
 end
+
+dna_reader #(
+    .SIM_DNA_VALUE(SIM_DNA_VALUE),
+    .PCLK_DIV(PCLK_DIV)
+) dna (
+    .clk(ACLK),
+    .rst_n(ARESETn),
+    .DNA(DNA),
+    .DNA_READY(DNA_READY)
+);
 
 endmodule

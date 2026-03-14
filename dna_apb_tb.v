@@ -12,10 +12,9 @@ reg [31:0] PADDR;
 wire PREADY;
 wire [31:0] PRDATA;
 
-wire [56:0] DNA;
-wire DNA_READY;
-
-dna_apb dut0(
+dna_apb #(
+    .SIM_DNA_VALUE(57'h24ec844c05e854)
+) dut0 (
     .PCLK(PCLK),
     .PRESETn(PRESETn),
     .PSEL(PSEL),
@@ -25,18 +24,7 @@ dna_apb dut0(
     .PREADY(PREADY),
     .PRDATA(PRDATA),
     .PWDATA(32'hxxxxxxxx),
-    .PSLVERR(),
-    .DNA(DNA),
-    .DNA_READY(DNA_READY)
-);
-
-dna_reader #(
-    .SIM_DNA_VALUE(57'h24ec844c05e854)
-) dna (
-    .clk(PCLK),
-    .rst_n(PRESETn),
-    .DNA(DNA),
-    .DNA_READY(DNA_READY)
+    .PSLVERR()
 );
 
 initial begin

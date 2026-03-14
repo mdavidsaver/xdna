@@ -5,7 +5,10 @@
 
 // TODO: Figure out where this X_INTERFACE_INFO business is actually documented.
 //       How to specify window size?
-module dna_apb(
+module dna_apb #(
+    parameter [56:0] SIM_DNA_VALUE = 57'h0,
+    parameter PCLK_DIV = 1
+) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 PCLK CLK" *)
     (* X_INTERFACE_PARAMETER = "ASSOCIATED_RESET PRESETn, ASSOCIATED_BUSIF S_APB" *)
     input PCLK,
@@ -32,13 +35,13 @@ module dna_apb(
     (* MARK_DEBUG="TRUE" *)
     output reg [31:0] PRDATA, // Read Data (required)
     (* X_INTERFACE_INFO = "xilinx.com:interface:apb:1.0 S_APB PSLVERR" *)
-    output PSLVERR, // Slave Error Response (required)
-
-    input [56:0] DNA,
-    input DNA_READY
+    output PSLVERR // Slave Error Response (required)
 );
 
 assign PSLVERR = 1'b0; // always all right!
+
+wire [56:0] DNA;
+wire DNA_READY;
 
 always @(posedge PCLK)
 begin
@@ -56,5 +59,15 @@ begin
         end
     end
 end
+
+dna_reader #(
+    .SIM_DNA_VALUE(SIM_DNA_VALUE),
+    .PCLK_DIV(PCLK_DIV)
+) dna (
+    .clk(PCLK),
+    .rst_n(PRESETn),
+    .DNA(DNA),
+    .DNA_READY(DNA_READY)
+);
 
 endmodule

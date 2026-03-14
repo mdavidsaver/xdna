@@ -18,7 +18,9 @@ reg RREADY = 0;
 wire [56:0] DNA;
 wire DNA_READY;
 
-dna_axi axi (
+dna_axi #(
+    .SIM_DNA_VALUE(57'h24ec844c05e854)
+) axi (
     .ACLK(PCLK),
     .ARESETn(PRESETn),
     .ARADDR(ARADDR),
@@ -28,20 +30,8 @@ dna_axi axi (
     .RDATA(RDATA),
     .RRESP(RRESP),
     .RVALID(RVALID),
-    .RREADY(RREADY),
-    .DNA(DNA),
-    .DNA_READY(DNA_READY)
+    .RREADY(RREADY)
 );
-
-dna_reader #(
-    .SIM_DNA_VALUE(57'h24ec844c05e854)
-) dna (
-    .clk(PCLK),
-    .rst_n(PRESETn),
-    .DNA(DNA),
-    .DNA_READY(DNA_READY)
-);
-
 
 initial begin
     #10000000
