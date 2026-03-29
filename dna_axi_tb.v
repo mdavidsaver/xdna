@@ -90,7 +90,7 @@ end
 task axi_read(integer variant, [31:0] addr, expected);
     reg [31:0] actual;
 begin
-    $display("axi_read %x, expecting %x", addr, expected);
+    $display("axi_read%1d 0x%x, expecting 0x%x", variant, addr, expected);
 
     if(variant==0) begin
 
@@ -98,7 +98,7 @@ begin
         ARVALID <= 1;
         RREADY <= 1;
 
-        while(~ARREADY)
+        while(~ARREADY || ~ARVALID)
             @(posedge PCLK);
 
     end else if(variant==1) begin
@@ -106,7 +106,7 @@ begin
         ARADDR <= addr;
         ARVALID <= 1;
 
-        while(~ARREADY)
+        while(~ARREADY || ~ARVALID)
             @(posedge PCLK);
 
         RREADY <= 1;
@@ -119,20 +119,20 @@ begin
         ARADDR <= addr;
         ARVALID <= 1;
 
-        while(~ARREADY)
+        while(~ARREADY || ~ARVALID)
             @(posedge PCLK);
     end
 
     ARADDR <= 32'hxxxxxxxx;
     ARVALID <= 0;
 
-    while(~RVALID) begin
+    while(~RVALID || ~RREADY) begin
         @(posedge PCLK);
         actual <= RDATA;
     end
     RREADY <= 0;
 
-    while(RVALID)
+    while(RVALID || RREADY)
         @(posedge PCLK);
 
     $display("axi_read %x, expected %x, read %x", addr, expected, actual);

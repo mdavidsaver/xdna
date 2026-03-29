@@ -19,7 +19,7 @@ module dna_axi #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARVALID" *)
     input ARVALID, // Read address valid (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARREADY" *)
-    output reg ARREADY = 0, // Read address ready (optional)
+    output reg ARREADY = 1, // Read address ready (optional)
 
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RDATA" *)
     output reg [31:0] RDATA = 0, // Read data (optional)
@@ -38,7 +38,6 @@ reg [11:0] addr;
 reg addrd = 0;
 
 always @(posedge ACLK) begin
-    ARREADY <= 0;
     RDATA <= 32'hffffffff;
     RVALID <= 0;
     RRESP <= 0;
@@ -46,7 +45,6 @@ always @(posedge ACLK) begin
     if(ARVALID) begin
         addr <= ARADDR;
         addrd <= 1;
-        ARREADY <= 1;
     end
 
     if(RREADY & addrd & DNA_READY) begin
