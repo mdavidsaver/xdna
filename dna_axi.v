@@ -50,7 +50,7 @@ always @(posedge ACLK) begin
     if(RREADY & addrd & DNA_READY) begin
         RVALID <= 1;
         addrd <= 0;
-        case (addr & 32'h000000fc)
+        case (addr)
         0: RDATA <= {7'h00, DNA[56:32]};
         4: RDATA <= DNA[31:0];
         8: RDATA <= 32'hdeadbeef;
