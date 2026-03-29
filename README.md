@@ -4,8 +4,6 @@ Demonstration of annotating modules for use with Vivado block designer as RTL mo
 
 Allows reading of 57 bit unique ID from `DNA_PORT` primitive.
 
-- `dna_apb.v`
-  - APB bus endpoint.  (eg. usable with AXI to APB bridge core)
 - `dna_axi.v`
   - AXI4-LITE endpoint
 
