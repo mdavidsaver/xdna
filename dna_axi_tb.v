@@ -6,7 +6,7 @@ always #5000 PCLK <= ~PCLK;
 
 reg PRESETn = 1;
 
-reg [31:0] ARADDR;
+reg [11:0] ARADDR;
 reg ARVALID = 0;
 wire ARREADY;
 

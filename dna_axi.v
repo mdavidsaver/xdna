@@ -13,7 +13,7 @@ module dna_axi #(
 
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARADDR" *)
     (* X_INTERFACE_PARAMETER = "PROTOCOL AXI4LITE, READ_WRITE_MODE READ_ONLY" *)
-    input [31:0] ARADDR, // Read address (optional)
+    input [11:0] ARADDR, // Read address (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARPROT" *)
     input [2:0] ARPROT, // Protection type (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARVALID" *)
@@ -34,7 +34,7 @@ module dna_axi #(
 wire [56:0] DNA;
 wire DNA_READY;
 
-reg [7:0] addr;
+reg [11:0] addr;
 reg addrd = 0;
 
 always @(posedge ACLK) begin
@@ -44,7 +44,7 @@ always @(posedge ACLK) begin
     RRESP <= 0;
 
     if(ARVALID) begin
-        addr <= ARADDR[7:0];
+        addr <= ARADDR;
         addrd <= 1;
         ARREADY <= 1;
     end
