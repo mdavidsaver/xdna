@@ -15,6 +15,18 @@ wire [1:0] RRESP;
 wire RVALID;
 reg RREADY = 0;
 
+reg [11:0] AWADDR;
+reg AWVALID = 0;
+wire AWREADY;
+
+reg [31:0] WDATA;
+reg WVALID = 0;
+wire WREADY;
+
+wire [1:0] BRESP;
+wire BVALID;
+reg BREADY = 0;
+
 wire [56:0] DNA;
 wire DNA_READY;
 
@@ -23,14 +35,28 @@ dna_axi #(
 ) axi (
     .ACLK(ACLK),
     .ARESETn(ARESETn),
+
     .ARADDR(ARADDR),
     .ARPROT(3'b010), // data, non-secure, unpriv.
     .ARVALID(ARVALID),
     .ARREADY(ARREADY),
+
     .RDATA(RDATA),
     .RRESP(RRESP),
     .RVALID(RVALID),
-    .RREADY(RREADY)
+    .RREADY(RREADY),
+
+    .AWADDR(AWADDR),
+    .AWVALID(AWVALID),
+    .AWREADY(AWREADY),
+
+    .WDATA(WDATA),
+    .WVALID(WVALID),
+    .WREADY(WREADY),
+
+    .BRESP(BRESP),
+    .BVALID(BVALID),
+    .BREADY(BREADY)
 );
 
 `ifdef __ICARUS__
@@ -57,6 +83,9 @@ initial begin
     axi_read(0, 32'h0024ec84);
     axi_read(4, 32'h4c05e854);
     axi_read(8, 32'hdeadbeef);
+
+    axi_write(8, 32'h1badface);
+    axi_read(8, 32'h1badface);
 
 `ifdef __ICARUS__
     #10
@@ -116,5 +145,63 @@ begin
 end
 endtask
 
+reg [1:0] wactual;
+reg wdone = 1;
+always @(posedge ACLK) begin
+    if(AWVALID && AWREADY) begin
+        AWVALID <= 0;
+        AWADDR <= 32'hxxxxxxxx;
+    end
+    if(WVALID && WREADY) begin
+        WVALID <= 0;
+        WDATA <= 32'hxxxxxxxx;
+    end
+    if(~wdone && BVALID) begin
+        BREADY <= 1;
+        wdone <= 1;
+    end else if(BVALID && BREADY) begin
+        BREADY <= 0;
+        wactual <= BRESP;
+    end
+end
+
+// AXI4LITE write transaction
+task axi_write;
+    input [31:0] addr, wdata;
+begin
+    $display("axi_writing 0x%x, value 0x%x", addr, wdata);
+    AWADDR <= 32'hxxxxxxxx;
+    WDATA <= 32'hxxxxxxxx;
+
+    // cf. AXI4 spec.  A3.3.1 "Read transaction dependencies"
+
+    @(negedge ACLK);
+    if(BVALID) begin
+        // "the slave must wait for both WVALID and WREADY to be asserted before asserting BVALID"
+        $display("  axi_write premature BVALID");
+        $stop;
+    end
+
+    AWADDR <= addr;
+    AWVALID <= 1;
+
+    WDATA <= wdata;
+    WVALID <= 1;
+
+    wdone <= 0;
+
+    @(posedge ACLK);
+    while(AWVALID || WVALID || BREADY)
+        @(posedge ACLK);
+
+    if(wactual!=0) begin
+        $display("  Error! %x", wactual);
+        $stop;
+    end else begin
+        $display("  Ok");
+    end
+
+end
+endtask
 
 endmodule

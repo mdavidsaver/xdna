@@ -12,7 +12,7 @@ module dna_axi #(
 
     // read address channel
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARADDR" *)
-    (* X_INTERFACE_PARAMETER = "PROTOCOL AXI4LITE, READ_WRITE_MODE READ_ONLY" *)
+    (* X_INTERFACE_PARAMETER = "PROTOCOL AXI4LITE" *)
     input [11:0] ARADDR, // Read address (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARPROT" *)
     input [2:0] ARPROT, // Protection type (optional)
@@ -37,7 +37,7 @@ module dna_axi #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWVALID" *)
     input AWVALID, // Write address valid (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWREADY" *)
-    output reg AWREADY = 1, // Write address ready (optional)
+    output AWREADY, // Write address ready (optional)
 
     // write data channel
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WDATA" *)
@@ -47,7 +47,7 @@ module dna_axi #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WVALID" *)
     input WVALID, // Write valid (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WREADY" *)
-    output reg WREADY = 1, // Write ready (optional)
+    output reg WREADY = 0, // Write ready (optional)
 
     // write response channel
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI BRESP" *)
@@ -60,6 +60,8 @@ module dna_axi #(
 
 wire [56:0] DNA;
 wire DNA_READY;
+
+reg [31:0] mbox = 32'hdeadbeef;
 
 // read address/data channels
 
@@ -86,7 +88,7 @@ always @(posedge ACLK) begin
         case (ARADDR)
         0: RDATA <= {7'h00, DNA[56:32]};
         4: RDATA <= DNA[31:0];
-        8: RDATA <= 32'hdeadbeef;
+        8: RDATA <= mbox;
         default: RRESP <= 2'b10;
         endcase
     end
@@ -94,17 +96,42 @@ end
 
 // write address/data/response channels
 
-// ack and error all writes
+reg lvalid = 2'b10;
+assign AWREADY = WREADY;
+
 always @(posedge ACLK) begin
     if(~ARESETn) begin
+        WREADY <= 0;
+    end else begin
+        WREADY <= ~WREADY && AWVALID && WVALID && (!BVALID || BREADY);
+    end
+
+    if(~ARESETn) begin
         BVALID <= 0;
+        BRESP <= 2'b10;
     end else if(WVALID && WREADY) begin
         BVALID <= 1;
+        BRESP <= lvalid;
     end else if(BVALID && BREADY) begin
         BVALID <= 0;
+        BRESP <= 2'b10;
     end
 end
 
+always @(posedge ACLK) begin
+    lvalid <= 2'b10;
+
+    if(~ARESETn) begin
+        mbox <= 32'hdeadbeef;
+
+    end else if(AWVALID && WVALID && WREADY) begin
+        lvalid <= 0;
+        case (AWADDR)
+        8: mbox <= WDATA;
+        default: lvalid <= 2'b10;
+        endcase
+    end
+end
 
 dna_reader #(
     .SIM_DNA_VALUE(SIM_DNA_VALUE)
