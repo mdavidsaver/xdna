@@ -1,10 +1,10 @@
 `timescale  1 ps / 1 ps
 module test;
 
-reg PCLK = 0;
-always #5000 PCLK <= ~PCLK;
+reg ACLK = 0;
+always #5000 ACLK <= ~ACLK;
 
-reg PRESETn = 1;
+reg ARESETn = 1;
 
 reg [11:0] ARADDR;
 reg ARVALID = 0;
@@ -21,8 +21,8 @@ wire DNA_READY;
 dna_axi #(
     .SIM_DNA_VALUE(57'h24ec844c05e854)
 ) axi (
-    .ACLK(PCLK),
-    .ARESETn(PRESETn),
+    .ACLK(ACLK),
+    .ARESETn(ARESETn),
     .ARADDR(ARADDR),
     .ARPROT(3'b010), // data, non-secure, unpriv.
     .ARVALID(ARVALID),
@@ -44,103 +44,70 @@ initial begin
     $dumpvars(0,test);
 
     $display("Reset");
-    @(posedge PCLK);
-    PRESETn <= 0;
-    @(posedge PCLK);
-    PRESETn <= 1;
+    @(posedge ACLK);
+    ARESETn <= 0;
+    @(posedge ACLK);
+    ARESETn <= 1;
 
-    axi_read(0, 0, 32'h0024ec84);
-    axi_read(0, 0, 32'h0024ec84);
-    axi_read(0, 4, 32'h4c05e854);
-    axi_read(0, 8, 32'hdeadbeef);
-
-    $display("Reset");
-    @(posedge PCLK);
-    PRESETn <= 0;
-    @(posedge PCLK);
-    PRESETn <= 1;
-
-    axi_read(1, 0, 32'h0024ec84);
-    axi_read(1, 0, 32'h0024ec84);
-    axi_read(1, 4, 32'h4c05e854);
-    axi_read(1, 8, 32'hdeadbeef);
-
-    $display("Reset");
-    @(posedge PCLK);
-    PRESETn <= 0;
-    @(posedge PCLK);
-    PRESETn <= 1;
-
-    axi_read(2, 0, 32'h0024ec84);
-    axi_read(2, 0, 32'h0024ec84);
-    axi_read(2, 4, 32'h4c05e854);
-    axi_read(2, 8, 32'hdeadbeef);
+    axi_read(0, 32'h0024ec84);
+    axi_read(0, 32'h0024ec84);
+    axi_read(4, 32'h4c05e854);
+    axi_read(8, 32'hdeadbeef);
 
     #10
     $finish();
 end
+reg [31:0] ractual;
+reg rdone = 1;
+always @(posedge ACLK) begin
+    if(ARVALID && ARREADY) begin
+        ARVALID <= 0;
+        ARADDR <= 32'hxxxxxxxx;
+    end
+    if(~rdone && RVALID) begin // wait for valid
+        RREADY <= 1;
+        rdone <= 1;
+    end else if(RVALID && RREADY) begin // complete
+        RREADY <= 0;
+        ractual <= RDATA;
+    end
+end
 
-/* AXI4LITE read transaction(s)
- *
- * channel ordering variants:
- * 0 - Start both AR and R channel on the same tick
- * 1 - Complete AR before R
- * 2 - Start R before AR
- */
-task axi_read(integer variant, [31:0] addr, expected);
-    reg [31:0] actual;
+// AXI4LITE read transaction
+task axi_read;
+    input [31:0] addr;
+    input [31:0] expected;
 begin
-    $display("axi_read%1d 0x%x, expecting 0x%x", variant, addr, expected);
+    $display("axi_reading 0x%x, expecting 0x%x", addr, expected);
+    ractual <= 32'hxxxxxxxx;
 
-    if(variant==0) begin
+    // cf. AXI4 spec.  A3.3 "Read transaction dependencies"
 
-        ARADDR <= addr;
-        ARVALID <= 1;
-        RREADY <= 1;
-
-        while(~ARREADY || ~ARVALID)
-            @(posedge PCLK);
-
-    end else if(variant==1) begin
-
-        ARADDR <= addr;
-        ARVALID <= 1;
-
-        while(~ARREADY || ~ARVALID)
-            @(posedge PCLK);
-
-        RREADY <= 1;
-
-    end else if(variant==2) begin
-        RREADY <= 1;
-        @(posedge PCLK);
-        @(posedge PCLK);
-
-        ARADDR <= addr;
-        ARVALID <= 1;
-
-        while(~ARREADY || ~ARVALID)
-            @(posedge PCLK);
-    end
-
-    ARADDR <= 32'hxxxxxxxx;
-    ARVALID <= 0;
-
-    while(~RVALID || ~RREADY) begin
-        @(posedge PCLK);
-        actual <= RDATA;
-    end
-    RREADY <= 0;
-
-    while(RVALID || RREADY)
-        @(posedge PCLK);
-
-    $display("axi_read %x, expected %x, read %x", addr, expected, actual);
-    if(actual!==expected) begin
-        $display("Mis-match!");
+    if(RVALID) begin
+        // AXI4 spec A3.3
+        // "the slave must wait for both ARVALID and ARREADY to be asserted before
+        // it asserts RVALID to indicate that valid data is available"
+        $display("  axi_read premature RVALID");
         $stop;
+    end
+
+    ARADDR <= addr;
+    ARVALID <= 1;
+    rdone <= 0;
+
+    @(posedge ACLK);
+    while(ARVALID || ~(rdone && ~RREADY))
+        @(posedge ACLK);
+
+    $display("  axi_read 0x%x, expected 0x%x, found 0x%x", addr, expected, ractual);
+    if(ractual!==expected) begin
+        $display("  Mis-match!");
+        $stop;
+    end else begin
+        $display("  Ok");
     end
 end
 endtask
+
 
 endmodule

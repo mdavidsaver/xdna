@@ -7,22 +7,17 @@ always #5000 PCLK <= ~PCLK;
 
 reg PRESETn = 1;
 
-wire [56:0] ID [2:0];
-wire [2:0] ready;
+wire [56:0] ID;
+wire ready;
 
-genvar i;
-generate
-for(i = 0; i<3; i++)
-    dna_reader #(
-        .SIM_DNA_VALUE(57'h24ec844c05e854),
-        .PCLK_DIV(1<<i) // 1, 2, 4
-    ) dna (
-        .clk(PCLK),
-        .rst_n(PRESETn),
-        .DNA(ID[i]),
-        .DNA_READY(ready[i])
-    );
-endgenerate
+dna_reader #(
+    .SIM_DNA_VALUE(57'h24ec844c05e854)
+) dna (
+    .clk(PCLK),
+    .rst_n(PRESETn),
+    .DNA(ID),
+    .DNA_READY(ready)
+);
 
 initial begin
     #10000000
@@ -39,17 +34,11 @@ initial begin
     #10
     PRESETn <= 1;
 
-    while(ready!==3'b111)
+    while(~ready)
         @(posedge PCLK);
 
-    $display("div 1 %x", ID[0]);
-    $display("div 2 %x", ID[1]);
-    $display("div 4 %x", ID[2]);
-    if(ID[0]!==57'h24ec844c05e854)
-        $stop;
-    if(ID[1]!==57'h24ec844c05e854)
-        $stop;
-    if(ID[2]!==57'h24ec844c05e854)
+    $display("div %x", ID);
+    if(ID!==57'h24ec844c05e854)
         $stop;
 
     #100

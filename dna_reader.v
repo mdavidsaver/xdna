@@ -1,25 +1,12 @@
 `timescale  1 ps / 1 ps
 module dna_reader #(
-    parameter [56:0] SIM_DNA_VALUE = 57'h0,
-    parameter PCLK_DIV = 1
+    parameter [56:0] SIM_DNA_VALUE = 57'h0
 ) (
-    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 dna_CLK CLK" *)
-    (* X_INTERFACE_PARAMETER = "ASSOCIATED_RESET dna_CLK, FREQ_HZ 100000000, FREQ_TOLERANCE_HZ -1" *)
     input clk,
-    (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 dna_CLK RST" *)
-    (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_LOW" *)
     input rst_n,
     output reg [56:0] DNA,
     output DNA_READY
 );
-
-reg [$clog2(PCLK_DIV)-1:0] div = 0;
-
-always @(posedge clk) begin
-    div <= div + 1;
-    if(~rst_n | div==PCLK_DIV-1)
-        div <= 0;
-end
 
 // number of bits in DNA_PORT shift register
 localparam NBIT = 57;
@@ -48,7 +35,7 @@ begin
         state <= 0;
         shifted <= 0;
 
-    end else if(~DNA_READY & div==0 & state!=NSTATE-1) begin
+    end else if(~DNA_READY && state!=NSTATE-1) begin
         state <= state + 1;
 
         if(state==0)

@@ -1,7 +1,6 @@
 `timescale  1 ns / 1 ps
 module dna_axi #(
-    parameter [56:0] SIM_DNA_VALUE = 57'h0,
-    parameter PCLK_DIV = 1
+    parameter [56:0] SIM_DNA_VALUE = 57'h0
 ) (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 ACLK CLK" *)
     (* X_INTERFACE_PARAMETER = "ASSOCIATED_RESET ARESETn, ASSOCIATED_BUSIF S_AXI" *)
@@ -11,6 +10,7 @@ module dna_axi #(
     (* X_INTERFACE_PARAMETER = "POLARITY ACTIVE_LOW" *)
     input ARESETn,
 
+    // read address channel
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARADDR" *)
     (* X_INTERFACE_PARAMETER = "PROTOCOL AXI4LITE, READ_WRITE_MODE READ_ONLY" *)
     input [11:0] ARADDR, // Read address (optional)
@@ -19,8 +19,9 @@ module dna_axi #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARVALID" *)
     input ARVALID, // Read address valid (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARREADY" *)
-    output reg ARREADY = 1, // Read address ready (optional)
+    output reg ARREADY = 0, // Read address ready (optional)
 
+    // read data channel
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RDATA" *)
     output reg [31:0] RDATA = 0, // Read data (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RRESP" *)
@@ -28,45 +29,85 @@ module dna_axi #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RVALID" *)
     output reg RVALID = 0, // Read valid (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
-    input RREADY // Read ready (optional)
+    input RREADY, // Read ready (optional)
+
+    // write address channel
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWADDR" *)
+    input [11:0] AWADDR, // Write address (optional)
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWVALID" *)
+    input AWVALID, // Write address valid (optional)
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWREADY" *)
+    output reg AWREADY = 1, // Write address ready (optional)
+
+    // write data channel
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WDATA" *)
+    input [31:0] WDATA, // Write data (optional)
+    //(* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WSTRB" *)
+    //input [31:0] WSTRB, // Write strobes (optional)
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WVALID" *)
+    input WVALID, // Write valid (optional)
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI WREADY" *)
+    output reg WREADY = 1, // Write ready (optional)
+
+    // write response channel
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI BRESP" *)
+    output reg [1:0] BRESP = 2'b10, // Write response (optional)
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI BVALID" *)
+    output reg BVALID = 0, // Write response valid (optional)
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI BREADY" *)
+    input BREADY // Write response ready (optional)
 );
 
 wire [56:0] DNA;
 wire DNA_READY;
 
-reg [11:0] addr;
-reg addrd = 0;
+// read address/data channels
 
 always @(posedge ACLK) begin
-    RDATA <= 32'hffffffff;
-    RVALID <= 0;
-    RRESP <= 0;
-
-    if(ARVALID) begin
-        addr <= ARADDR;
-        addrd <= 1;
-    end
-
-    if(RREADY & addrd & DNA_READY) begin
+    if(~ARESETn) begin
+        ARREADY <= 0;
+        RVALID <= 0;
+    end else if(ARVALID && DNA_READY) begin
+        ARREADY <= 1;
         RVALID <= 1;
-        addrd <= 0;
-        case (addr)
+    end else if(RREADY) begin
+        ARREADY <= 0;
+        RVALID <= 0;
+    end
+end
+
+always @(posedge ACLK) begin
+    RRESP <= 2'b10;
+    if(~ARESETn) begin
+        RDATA <= 0;
+
+    end else if(ARVALID && ARREADY && DNA_READY) begin
+        RRESP <= 0;
+        case (ARADDR)
         0: RDATA <= {7'h00, DNA[56:32]};
         4: RDATA <= DNA[31:0];
         8: RDATA <= 32'hdeadbeef;
         default: RRESP <= 2'b10;
         endcase
     end
+end
 
+// write address/data/response channels
+
+// ack and error all writes
+always @(posedge ACLK) begin
     if(~ARESETn) begin
-        addr <= 0;
-        addrd <= 0;
+        BVALID <= 0;
+    end else if(WVALID && WREADY) begin
+        BVALID <= 1;
+    end else if(BVALID && BREADY) begin
+        BVALID <= 0;
     end
 end
 
+
 dna_reader #(
-    .SIM_DNA_VALUE(SIM_DNA_VALUE),
-    .PCLK_DIV(PCLK_DIV)
+    .SIM_DNA_VALUE(SIM_DNA_VALUE)
 ) dna (
     .clk(ACLK),
     .rst_n(ARESETn),
