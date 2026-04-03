@@ -1,3 +1,5 @@
+/* AXI4-LITE slave module to read from DNA_PORT primative (kintex7 and similar)
+ */
 `timescale  1 ns / 1 ns
 module dna_axi #(
     parameter [56:0] SIM_DNA_VALUE = 57'h0
@@ -19,7 +21,7 @@ module dna_axi #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARVALID" *)
     input ARVALID, // Read address valid (optional)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI ARREADY" *)
-    output reg ARREADY = 0, // Read address ready (optional)
+    output ARREADY, // Read address ready (optional)
 
     // read data channel
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RDATA" *)
@@ -63,17 +65,31 @@ wire DNA_READY;
 
 reg [31:0] mbox = 32'hdeadbeef;
 
+/* Refering to "AMBA® AXI™ and ACE™ Protocol Specification"
+ * revision E, 22 Feb. 2013
+ *
+ * Principly A3.3.1 "Dependencies between channel handshake signals"
+ * sub-sections "Read transaction dependencies"
+ * and "Write transaction dependencies"
+ */
+
 // read address/data channels
+
+// "the slave can assert ARREADY before ARVALID is asserted"
+// delay any read response until DNA shifted in.
+assign ARREADY = DNA_READY;
 
 always @(posedge ACLK) begin
     if(~ARESETn) begin
-        ARREADY <= 0;
         RVALID <= 0;
-    end else if(ARVALID && DNA_READY) begin
-        ARREADY <= 1;
+
+    end else if(ARVALID && ARREADY) begin
+        // "the slave must wait for both ARVALID and ARREADY to be asserted before
+        //  it asserts RVALID to indicate that valid data is available"
+        // "the slave must not wait for the master to assert RREADY before asserting RVALID"
         RVALID <= 1;
-    end else if(RREADY) begin
-        ARREADY <= 0;
+
+    end else if(RVALID && RREADY) begin
         RVALID <= 0;
     end
 end
@@ -83,7 +99,7 @@ always @(posedge ACLK) begin
     if(~ARESETn) begin
         RDATA <= 0;
 
-    end else if(ARVALID && ARREADY && DNA_READY) begin
+    end else if(ARVALID && ARREADY) begin
         RRESP <= 0;
         case (ARADDR)
         0: RDATA <= {7'h00, DNA[56:32]};
@@ -103,6 +119,8 @@ always @(posedge ACLK) begin
     if(~ARESETn) begin
         WREADY <= 0;
     end else begin
+        // "the slave can wait for AWVALID or WVALID, or both before asserting AWREADY"
+        // "the slave can wait for AWVALID or WVALID, or both, before asserting WREADY"
         WREADY <= ~WREADY && AWVALID && WVALID && (!BVALID || BREADY);
     end
 
@@ -110,6 +128,8 @@ always @(posedge ACLK) begin
         BVALID <= 0;
         BRESP <= 2'b10;
     end else if(WVALID && WREADY) begin
+        // "the slave must wait for both WVALID and WREADY to be asserted before asserting BVALID"
+        // "the slave must not wait for the master to assert BREADY before asserting BVALID"
         BVALID <= 1;
         BRESP <= lvalid;
     end else if(BVALID && BREADY) begin

@@ -93,6 +93,14 @@ initial begin
 `endif
 end
 
+/* Refering to "AMBA® AXI™ and ACE™ Protocol Specification"
+ * revision E, 22 Feb. 2013
+ *
+ * Principly A3.3.1 "Dependencies between channel handshake signals"
+ * sub-sections "Read transaction dependencies"
+ * and "Write transaction dependencies"
+ */
+
 reg [31:0] ractual;
 reg rdone = 1;
 always @(posedge ACLK) begin
@@ -100,10 +108,11 @@ always @(posedge ACLK) begin
         ARVALID <= 0;
         ARADDR <= 32'hxxxxxxxx;
     end
-    if(~rdone && RVALID) begin // wait for valid
+    // "the master can wait for RVALID to be asserted before it asserts RREADY"
+    if(~rdone && RVALID) begin
         RREADY <= 1;
         rdone <= 1;
-    end else if(RVALID && RREADY) begin // complete
+    end else if(RVALID && RREADY) begin
         RREADY <= 0;
         ractual <= RDATA;
     end
@@ -117,8 +126,6 @@ begin
     $display("axi_reading 0x%x, expecting 0x%x", addr, expected);
     ractual <= 32'hxxxxxxxx;
 
-    // cf. AXI4 spec.  A3.3 "Read transaction dependencies"
-
     @(negedge ACLK);
     if(RVALID) begin
         // "the slave must wait for both ARVALID and ARREADY to be asserted before
@@ -128,6 +135,7 @@ begin
     end
 
     ARADDR <= addr;
+    // "the master must not wait for the slave to assert ARREADY before asserting ARVALID"
     ARVALID <= 1;
     rdone <= 0;
 
@@ -156,6 +164,7 @@ always @(posedge ACLK) begin
         WVALID <= 0;
         WDATA <= 32'hxxxxxxxx;
     end
+    // "the master can wait for BVALID before asserting BREADY"
     if(~wdone && BVALID) begin
         BREADY <= 1;
         wdone <= 1;
@@ -173,8 +182,6 @@ begin
     AWADDR <= 32'hxxxxxxxx;
     WDATA <= 32'hxxxxxxxx;
 
-    // cf. AXI4 spec.  A3.3.1 "Read transaction dependencies"
-
     @(negedge ACLK);
     if(BVALID) begin
         // "the slave must wait for both WVALID and WREADY to be asserted before asserting BVALID"
@@ -182,6 +189,8 @@ begin
         $stop;
     end
 
+    // " the master must not wait for the slave to assert AWREADY or WREADY before asserting
+    //   AWVALID or WVALID"
     AWADDR <= addr;
     AWVALID <= 1;
 
@@ -191,7 +200,7 @@ begin
     wdone <= 0;
 
     @(posedge ACLK);
-    while(AWVALID || WVALID || BREADY)
+    while(AWVALID || WVALID || BREADY) // wait for idle
         @(posedge ACLK);
 
     if(wactual!=0) begin
