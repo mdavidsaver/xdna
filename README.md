@@ -8,7 +8,7 @@ Allows reading of 57 bit unique ID from `DNA_PORT` primitive.
   - AXI4-LITE endpoint
 
 Each endpoint implements reads from 3 address offsets.
-Accepts 256 bytes of address space.
+Accepts 4096 bytes of address space (minimum vivado AXI crossbar switch allows).
 
 - offset 0 - `{7'h00, DNA[56:32]}`
 - offset 4 - `DNA[31:0]`
@@ -27,3 +27,4 @@ Test benches runnable with iverilog.
 - XML Schema Definitions
   - [`spirit:`](http://www.spiritconsortium.org/XMLSchema/SPIRIT/1685-2009/)
   - `xilinx:` ???
+- AMBA Specifications, includes AXI4-LITE
