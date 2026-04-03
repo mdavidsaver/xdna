@@ -1,4 +1,4 @@
-`timescale  1 ps / 1 ps
+`timescale  1 ns / 1 ns
 module dna_reader #(
     parameter [56:0] SIM_DNA_VALUE = 57'h0
 ) (
@@ -12,13 +12,10 @@ module dna_reader #(
 localparam NBIT = 57;
 localparam NSTATE = NBIT + 3;
 
-(* MARK_DEBUG="TRUE" *)
 reg [$clog2(NSTATE)-1:0] state = 0;
 assign DNA_READY = state == NSTATE-1;
 
-(* MARK_DEBUG="TRUE" *)
 reg shift=0, shifted=0, read=0;
-(* MARK_DEBUG="TRUE" *)
 wire dout;
 
 always @(posedge clk)
@@ -53,7 +50,7 @@ DNA_PORT #(
     .READ(read),
     .SHIFT(shift),
     .DOUT(dout),
-`ifdef SIM
+`ifdef __ICARUS__
     .DIN(1'bx)
 `else
     .DIN(1'b0)

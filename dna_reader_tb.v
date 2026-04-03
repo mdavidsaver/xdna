@@ -1,9 +1,9 @@
-`timescale  1 ps / 1 ps
+`timescale  1 ns / 1 ns
 
 module test;
 
 reg PCLK = 0;
-always #5000 PCLK <= ~PCLK;
+always #5 PCLK <= ~PCLK;
 
 reg PRESETn = 1;
 
@@ -19,19 +19,23 @@ dna_reader #(
     .DNA_READY(ready)
 );
 
+`ifdef __ICARUS__
 initial begin
-    #10000000
+    #10000
     $display("Timeout!");
     $stop;
 end
+`endif
 
 initial begin
+`ifdef __ICARUS__
     $dumpfile(`VCD);
     $dumpvars(0,test);
+`endif
 
-    #10
+    @(posedge PCLK);
     PRESETn <= 0;
-    #10
+    @(posedge PCLK);
     PRESETn <= 1;
 
     while(~ready)
@@ -41,8 +45,10 @@ initial begin
     if(ID!==57'h24ec844c05e854)
         $stop;
 
-    #100
+`ifdef __ICARUS__
+    @(posedge PCLK);
     $finish();
+`endif
 end
 
 endmodule

@@ -1,4 +1,4 @@
-`timescale  1 ns / 1 ps
+`timescale  1 ns / 1 ns
 module dna_axi #(
     parameter [56:0] SIM_DNA_VALUE = 57'h0
 ) (

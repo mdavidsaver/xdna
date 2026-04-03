@@ -1,8 +1,8 @@
-`timescale  1 ps / 1 ps
+`timescale  1 ns / 1 ns
 module test;
 
 reg ACLK = 0;
-always #5000 ACLK <= ~ACLK;
+always #5 ACLK <= ~ACLK;
 
 reg ARESETn = 1;
 
@@ -33,15 +33,19 @@ dna_axi #(
     .RREADY(RREADY)
 );
 
+`ifdef __ICARUS__
 initial begin
-    #10000000
+    #10000
     $display("Timeout!");
     $stop;
 end
+`endif
 
 initial begin
+`ifdef __ICARUS__
     $dumpfile(`VCD);
     $dumpvars(0,test);
+`endif
 
     $display("Reset");
     @(posedge ACLK);
@@ -54,9 +58,12 @@ initial begin
     axi_read(4, 32'h4c05e854);
     axi_read(8, 32'hdeadbeef);
 
+`ifdef __ICARUS__
     #10
     $finish();
+`endif
 end
+
 reg [31:0] ractual;
 reg rdone = 1;
 always @(posedge ACLK) begin
@@ -83,8 +90,8 @@ begin
 
     // cf. AXI4 spec.  A3.3 "Read transaction dependencies"
 
+    @(negedge ACLK);
     if(RVALID) begin
-        // AXI4 spec A3.3
         // "the slave must wait for both ARVALID and ARREADY to be asserted before
         // it asserts RVALID to indicate that valid data is available"
         $display("  axi_read premature RVALID");
