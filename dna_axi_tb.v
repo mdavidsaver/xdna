@@ -67,10 +67,16 @@ initial begin
 end
 `endif
 
+
+
 initial begin
 `ifdef __ICARUS__
-    $dumpfile(`VCD);
-    $dumpvars(0,test);
+    string vcd;
+    if($value$plusargs("vcd=%s", vcd)) begin
+        $display("Dump to %s", vcd);
+        $dumpfile(vcd);
+        $dumpvars(0,test);
+    end
 `endif
 
     $display("Reset");
@@ -101,9 +107,35 @@ end
  * and "Write transaction dependencies"
  */
 
+/* AXI master protocol variant
+ *
+ * 0 - Master waits for slave.
+ *     "the master can wait for RVALID to be asserted before it asserts RREADY"
+ *     "the master can wait for BVALID before asserting BREADY"
+ * 1 - Master leads
+ *     "the master can assert RREADY before RVALID is asserted."
+ *     "the master can assert BREADY before BVALID is asserted."
+ */
+reg axi_proto = 0;
+
+initial begin
+    if($value$plusargs("axiproto=%d", axi_proto)) begin end
+    $display("# Using AXI master protocol variant %d", axi_proto);
+    if(axi_proto<0 || axi_proto>1) begin
+        $display("$  Invalid variant");
+        $stop;
+    end
+end
+
 reg [31:0] ractual;
 reg rdone = 1;
 always @(posedge ACLK) begin
+    if(ARVALID && ARREADY && RVALID) begin
+        // "the slave must wait for both ARVALID and ARREADY to be asserted before
+        // it asserts RVALID to indicate that valid data is available"
+        $display("  axi_read premature RVALID");
+        $stop;
+    end
     if(ARVALID && ARREADY) begin
         ARVALID <= 0;
         ARADDR <= 32'hxxxxxxxx;
@@ -119,33 +151,45 @@ always @(posedge ACLK) begin
 end
 
 // AXI4LITE read transaction
-task axi_read;
+
+task axi_read_value;
     input [31:0] addr;
-    input [31:0] expected;
+    output [31:0] actual;
 begin
-    $display("axi_reading 0x%x, expecting 0x%x", addr, expected);
     ractual <= 32'hxxxxxxxx;
 
     @(negedge ACLK);
-    if(RVALID) begin
-        // "the slave must wait for both ARVALID and ARREADY to be asserted before
-        // it asserts RVALID to indicate that valid data is available"
-        $display("  axi_read premature RVALID");
-        $stop;
-    end
 
     ARADDR <= addr;
     // "the master must not wait for the slave to assert ARREADY before asserting ARVALID"
     ARVALID <= 1;
-    rdone <= 0;
+
+    case(axi_proto)
+    0: rdone <= 0;
+    1: RREADY <= 1;
+    endcase
 
     @(posedge ACLK);
     while(ARVALID || ~(rdone && ~RREADY))
         @(posedge ACLK);
+    actual = ractual;
+end
+endtask
 
-    $display("  axi_read 0x%x, expected 0x%x, found 0x%x", addr, expected, ractual);
-    if(ractual!==expected) begin
-        $display("  Mis-match!");
+task axi_read_mask;
+    input [31:0] addr;
+    input [31:0] mask;
+    input [31:0] expected;
+begin
+    reg [31:0] actual;
+    $display("axi_reading 0x%x, mask 0x%x, expecting 0x%x", addr, mask, expected);
+
+    axi_read_value(addr, actual);
+
+    $display("  axi_read 0x%x, mask 0x%x, expected 0x%x, found 0x%x",
+        addr, mask, expected, actual);
+    if((actual&mask)!==(expected&mask)) begin
+        $display("  Mis-match! 0x%x !== 0x%x", actual&mask, expected&mask);
         $stop;
     end else begin
         $display("  Ok");
@@ -153,9 +197,22 @@ begin
 end
 endtask
 
+task axi_read;
+    input [31:0] addr;
+    input [31:0] expected;
+begin
+    axi_read_mask(addr, 32'hffffffff, expected);
+end
+endtask
+
 reg [1:0] wactual;
 reg wdone = 1;
 always @(posedge ACLK) begin
+    if(AWVALID && AWREADY && BVALID) begin
+        // "the slave must wait for both WVALID and WREADY to be asserted before asserting BVALID"
+        $display("  axi_write premature BVALID");
+        $stop;
+    end
     if(AWVALID && AWREADY) begin
         AWVALID <= 0;
         AWADDR <= 32'hxxxxxxxx;
@@ -179,15 +236,11 @@ task axi_write;
     input [31:0] addr, wdata;
 begin
     $display("axi_writing 0x%x, value 0x%x", addr, wdata);
+
     AWADDR <= 32'hxxxxxxxx;
     WDATA <= 32'hxxxxxxxx;
 
     @(negedge ACLK);
-    if(BVALID) begin
-        // "the slave must wait for both WVALID and WREADY to be asserted before asserting BVALID"
-        $display("  axi_write premature BVALID");
-        $stop;
-    end
 
     // " the master must not wait for the slave to assert AWREADY or WREADY before asserting
     //   AWVALID or WVALID"
@@ -197,7 +250,10 @@ begin
     WDATA <= wdata;
     WVALID <= 1;
 
-    wdone <= 0;
+    case(axi_proto)
+    0:wdone <= 0;
+    1:BREADY <= 1;
+    endcase
 
     @(posedge ACLK);
     while(AWVALID || WVALID || BREADY) // wait for idle
@@ -209,7 +265,6 @@ begin
     end else begin
         $display("  Ok");
     end
-
 end
 endtask
 

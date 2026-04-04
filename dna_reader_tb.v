@@ -29,8 +29,12 @@ end
 
 initial begin
 `ifdef __ICARUS__
-    $dumpfile(`VCD);
-    $dumpvars(0,test);
+    string vcd;
+    if($value$plusargs("vcd=%s", vcd)) begin
+        $display("Dump to %s", vcd);
+        $dumpfile(vcd);
+        $dumpvars(0,test);
+    end
 `endif
 
     @(posedge PCLK);
