@@ -1,38 +1,16 @@
 `timescale  1 ns / 1 ns
 module test;
 
-reg ACLK = 0;
+`include "axi_testing.vh"
+
 always #5 ACLK <= ~ACLK;
-
-reg ARESETn = 1;
-
-reg [11:0] ARADDR;
-reg ARVALID = 0;
-wire ARREADY;
-
-wire [31:0] RDATA;
-wire [1:0] RRESP;
-wire RVALID;
-reg RREADY = 0;
-
-reg [11:0] AWADDR;
-reg AWVALID = 0;
-wire AWREADY;
-
-reg [31:0] WDATA;
-reg WVALID = 0;
-wire WREADY;
-
-wire [1:0] BRESP;
-wire BVALID;
-reg BREADY = 0;
 
 wire [56:0] DNA;
 wire DNA_READY;
 
 dna_axi #(
     .SIM_DNA_VALUE(57'h24ec844c05e854)
-) axi (
+) dut (
     .ACLK(ACLK),
     .ARESETn(ARESETn),
 
@@ -67,8 +45,6 @@ initial begin
 end
 `endif
 
-
-
 initial begin
 `ifdef __ICARUS__
     string vcd;
@@ -85,20 +61,18 @@ initial begin
     @(posedge ACLK);
     ARESETn <= 1;
 
-    axi_read(0, 32'h0024ec84);
-    axi_read(0, 32'h0024ec84);
-    axi_read(4, 32'h4c05e854);
-    axi_read(8, 32'hdeadbeef);
+    axi.read(0, 32'h0024ec84);
+    axi.read(0, 32'h0024ec84);
+    axi.read(4, 32'h4c05e854);
+    axi.read(8, 32'hdeadbeef);
 
-    axi_write(8, 32'h1badface);
-    axi_read(8, 32'h1badface);
+    axi.write(8, 32'h1badface);
+    axi.read(8, 32'h1badface);
 
 `ifdef __ICARUS__
     #10
     $finish();
 `endif
 end
-
-`include "axi_testing.vh"
 
 endmodule

@@ -1,3 +1,55 @@
+/** @file axi_testing.vh
+ *
+ * Test client for AXI modules using IVerilog
+ *
+ * Selection from the 0 or 1 signal ordering variations using:
+ * @code
+ *   vvp ... my_tb.v +axiproto=0
+ * @endcode
+ *
+ * Client operations
+ * @code
+ * `timescale  1 ns / 1 ns
+ * module test;
+ * `include "axi_testing.vh"
+ * always #5 ACLK <= ~ACLK;
+ * my dut (
+ *   .s_axi_aclk(ACLK), // testing signal names from AMBA spec.
+ *   ...
+ * );
+ * initial begin
+ *   ...
+ *   axi.read(32'h00000000, 32'hdeadbeef) // expect to read 0xdeadbeef from address 0
+ *
+ *   axi.write(32'h00001234, 32'deadbeef) // write to address 0x1234, expect BRESP success
+ * end
+ * endmodule
+ * @endcode
+ */
+
+reg ACLK = 0;
+reg ARESETn = 1;
+
+reg [11:0] ARADDR;
+reg ARVALID = 0;
+wire ARREADY;
+
+wire [31:0] RDATA;
+wire [1:0] RRESP;
+wire RVALID;
+reg RREADY = 0;
+
+reg [11:0] AWADDR;
+reg AWVALID = 0;
+wire AWREADY;
+
+reg [31:0] WDATA;
+reg WVALID = 0;
+wire WREADY;
+
+wire [1:0] BRESP;
+wire BVALID;
+reg BREADY = 0;
 
 /* Refering to "AMBA® AXI™ and ACE™ Protocol Specification"
  * revision E, 22 Feb. 2013
@@ -6,6 +58,8 @@
  * sub-sections "Read transaction dependencies"
  * and "Write transaction dependencies"
  */
+
+generate if(1) begin : axi // private namespace
 
 /* AXI master protocol variant
  *
@@ -16,16 +70,18 @@
  *     "the master can assert RREADY before RVALID is asserted."
  *     "the master can assert BREADY before BVALID is asserted."
  */
-reg axi_proto = 0;
+reg proto = 0;
 
 initial begin
-    if($value$plusargs("axiproto=%d", axi_proto)) begin end
-    $display("# Using AXI master protocol variant %d", axi_proto);
-    if(axi_proto<0 || axi_proto>1) begin
+    if($value$plusargs("axiproto=%d", proto)) begin end
+    $display("# Using AXI master protocol variant %d", proto);
+    if(proto<0 || proto>1) begin
         $display("$  Invalid variant");
         $stop;
     end
 end
+
+// read channels
 
 reg [31:0] ractual;
 reg rdone = 1;
@@ -50,50 +106,7 @@ always @(posedge ACLK) begin
     end
 end
 
-// AXI4LITE read transaction
-
-task axi_read_mask;
-    input [31:0] addr;
-    input [31:0] mask;
-    input [31:0] expected;
-begin
-    $display("axi_reading 0x%x, mask 0x%x, expecting 0x%x", addr, mask, expected);
-
-    ractual <= 32'hxxxxxxxx;
-
-    @(negedge ACLK);
-
-    ARADDR <= addr;
-    // "the master must not wait for the slave to assert ARREADY before asserting ARVALID"
-    ARVALID <= 1;
-
-    case(axi_proto)
-    0: rdone <= 0;
-    1: RREADY <= 1;
-    endcase
-
-    @(posedge ACLK);
-    while(ARVALID || ~(rdone && ~RREADY))
-        @(posedge ACLK);
-
-    $display("  axi_read 0x%x, mask 0x%x, expected 0x%x, found 0x%x",
-        addr, mask, expected, ractual);
-    if((ractual&mask)!==(expected&mask)) begin
-        $display("  Mis-match! 0x%x !== 0x%x", ractual&mask, expected&mask);
-        $stop;
-    end else begin
-        $display("  Ok");
-    end
-end
-endtask
-
-task axi_read;
-    input [31:0] addr;
-    input [31:0] expected;
-begin
-    axi_read_mask(addr, 32'hffffffff, expected);
-end
-endtask
+// write channels
 
 reg [1:0] wactual;
 reg wdone = 1;
@@ -121,8 +134,53 @@ always @(posedge ACLK) begin
     end
 end
 
+// AXI4LITE read transaction
+
+task read_mask;
+    input [31:0] addr;
+    input [31:0] mask;
+    input [31:0] expected;
+begin
+    $display("axi_reading 0x%x, mask 0x%x, expecting 0x%x", addr, mask, expected);
+
+    axi.ractual <= 32'hxxxxxxxx;
+
+    @(negedge ACLK);
+
+    ARADDR <= addr;
+    // "the master must not wait for the slave to assert ARREADY before asserting ARVALID"
+    ARVALID <= 1;
+
+    case(axi.proto)
+    0: axi.rdone <= 0;
+    1: RREADY <= 1;
+    endcase
+
+    @(posedge ACLK);
+    while(ARVALID || ~(axi.rdone && ~RREADY))
+        @(posedge ACLK);
+
+    $display("  axi_read 0x%x, mask 0x%x, expected 0x%x, found 0x%x",
+        addr, mask, expected, axi.ractual);
+    if((axi.ractual&mask)!==(expected&mask)) begin
+        $display("  Mis-match! 0x%x !== 0x%x", axi.ractual&mask, expected&mask);
+        $stop;
+    end else begin
+        $display("  Ok");
+    end
+end
+endtask
+
+task read;
+    input [31:0] addr;
+    input [31:0] expected;
+begin
+    read_mask(addr, 32'hffffffff, expected);
+end
+endtask
+
 // AXI4LITE write transaction
-task axi_write;
+task write;
     input [31:0] addr, wdata;
 begin
     $display("axi_writing 0x%x, value 0x%x", addr, wdata);
@@ -140,8 +198,8 @@ begin
     WDATA <= wdata;
     WVALID <= 1;
 
-    case(axi_proto)
-    0:wdone <= 0;
+    case(axi.proto)
+    0:axi.wdone <= 0;
     1:BREADY <= 1;
     endcase
 
@@ -149,11 +207,13 @@ begin
     while(AWVALID || WVALID || BREADY) // wait for idle
         @(posedge ACLK);
 
-    if(wactual!=0) begin
-        $display("  Error! %x", wactual);
+    if(axi.wactual!=0) begin
+        $display("  Error! %x", axi.wactual);
         $stop;
     end else begin
         $display("  Ok");
     end
 end
 endtask
+
+end endgenerate // end private namespace
