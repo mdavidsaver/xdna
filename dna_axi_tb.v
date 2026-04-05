@@ -66,6 +66,7 @@ initial begin
     axi.read(4, 32'h4c05e854);
     axi.read(8, 32'hdeadbeef);
 
+    axi.write(8, 32'hbeeffeed);
     axi.write(8, 32'h1badface);
     axi.read(8, 32'h1badface);
 

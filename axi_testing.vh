@@ -83,7 +83,6 @@ end
 
 // read channels
 
-reg [31:0] ractual;
 reg rdone = 1;
 always @(posedge ACLK) begin
     if(ARVALID && ARREADY && RVALID) begin
@@ -102,13 +101,11 @@ always @(posedge ACLK) begin
         rdone <= 1;
     end else if(RVALID && RREADY) begin
         RREADY <= 0;
-        ractual <= RDATA;
     end
 end
 
 // write channels
 
-reg [1:0] wactual;
 reg wdone = 1;
 always @(posedge ACLK) begin
     if(AWVALID && AWREADY && BVALID) begin
@@ -130,7 +127,6 @@ always @(posedge ACLK) begin
         wdone <= 1;
     end else if(BVALID && BREADY) begin
         BREADY <= 0;
-        wactual <= BRESP;
     end
 end
 
@@ -142,8 +138,6 @@ task read_mask;
     input [31:0] expected;
 begin
     $display("axi_reading 0x%x, mask 0x%x, expecting 0x%x", addr, mask, expected);
-
-    axi.ractual <= 32'hxxxxxxxx;
 
     @(negedge ACLK);
 
@@ -157,13 +151,13 @@ begin
     endcase
 
     @(posedge ACLK);
-    while(ARVALID || ~(axi.rdone && ~RREADY))
+    while(~(RVALID && RREADY))
         @(posedge ACLK);
 
     $display("  axi_read 0x%x, mask 0x%x, expected 0x%x, found 0x%x",
-        addr, mask, expected, axi.ractual);
-    if((axi.ractual&mask)!==(expected&mask)) begin
-        $display("  Mis-match! 0x%x !== 0x%x", axi.ractual&mask, expected&mask);
+        addr, mask, expected, RDATA);
+    if((RDATA&mask)!==(expected&mask)) begin
+        $display("  Mis-match! 0x%x !== 0x%x", RDATA&mask, expected&mask);
         $stop;
     end else begin
         $display("  Ok");
@@ -204,11 +198,11 @@ begin
     endcase
 
     @(posedge ACLK);
-    while(AWVALID || WVALID || BREADY) // wait for idle
+    while(~(BVALID && BREADY))
         @(posedge ACLK);
 
-    if(axi.wactual!=0) begin
-        $display("  Error! %x", axi.wactual);
+    if(BRESP!=0) begin
+        $display("  Error! %x", BRESP);
         $stop;
     end else begin
         $display("  Ok");
