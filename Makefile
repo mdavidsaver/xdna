@@ -10,7 +10,7 @@ all: $(TBs:%.v=%_axi0)
 all: $(TBs:%.v=%_axi1)
 
 clean:
-	rm -f *.d *.vvp *.fst
+	rm -f *.d *.d1 *.vvp *.fst
 
 %_axi0: %.vvp FORCE
 	$(VVP) -M. -N "$<" -fst +vcd="$@.fst" +axiproto=0
