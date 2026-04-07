@@ -1,6 +1,6 @@
 /** @file axi_testing.vh
  *
- * Test client for AXI modules using IVerilog
+ * Test client for AXI4-LITE modules using IVerilog
  *
  * Selection from the 0 or 1 signal ordering variations using:
  * @code
@@ -108,7 +108,7 @@ end
 
 reg wdone = 1;
 always @(posedge ACLK) begin
-    if(AWVALID && AWREADY && BVALID) begin
+    if(WVALID && WREADY && BVALID) begin
         // "the slave must wait for both WVALID and WREADY to be asserted before asserting BVALID"
         $display("  axi_write premature BVALID");
         $stop;
@@ -147,7 +147,7 @@ begin
 
     case(axi.proto)
     0: axi.rdone <= 0;
-    1: RREADY <= 1;
+    1: RREADY <= 1; // "the master can assert RREADY before RVALID is asserted."
     endcase
 
     @(posedge ACLK);
@@ -194,7 +194,7 @@ begin
 
     case(axi.proto)
     0:axi.wdone <= 0;
-    1:BREADY <= 1;
+    1:BREADY <= 1; // "the master can assert BREADY before BVALID is asserted."
     endcase
 
     @(posedge ACLK);
