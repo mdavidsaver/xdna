@@ -14,7 +14,11 @@ Accepts 4096 bytes of address space (minimum vivado AXI crossbar switch allows).
 - offset 4 - `DNA[31:0]`
 - offset 8 - `32'hdeadbeef`
 
-Test benches runnable with iverilog.
+## Test Benches
+
+The included test bench [`dna_axi_tb.v`](dna_axi_tb.v) uses the testing
+infrastructure of `axi_testing.vh` for bus level testing with IVerilog,
+including automatic pass/fail suitable for continuous integration.
 
 ## References
 
