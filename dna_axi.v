@@ -112,7 +112,6 @@ end
 
 // write address/data/response channels
 
-reg lvalid = 2'b10;
 assign AWREADY = WREADY;
 
 always @(posedge ACLK) begin
@@ -125,31 +124,24 @@ always @(posedge ACLK) begin
     end
 
     if(~ARESETn) begin
+        mbox <= 32'hdeadbeef;
         BVALID <= 0;
         BRESP <= 2'b10;
-    end else if(WVALID && WREADY) begin
+
+    end else if(AWVALID && WVALID && WREADY) begin
+        BRESP <= 0;
+        case (AWADDR)
+        8: mbox <= WDATA;
+        default: BRESP <= 2'b10;
+        endcase
+
         // "the slave must wait for both WVALID and WREADY to be asserted before asserting BVALID"
         // "the slave must not wait for the master to assert BREADY before asserting BVALID"
         BVALID <= 1;
-        BRESP <= lvalid;
+
     end else if(BVALID && BREADY) begin
         BVALID <= 0;
         BRESP <= 2'b10;
-    end
-end
-
-always @(posedge ACLK) begin
-    lvalid <= 2'b10;
-
-    if(~ARESETn) begin
-        mbox <= 32'hdeadbeef;
-
-    end else if(AWVALID && WVALID && WREADY) begin
-        lvalid <= 0;
-        case (AWADDR)
-        8: mbox <= WDATA;
-        default: lvalid <= 2'b10;
-        endcase
     end
 end
 
