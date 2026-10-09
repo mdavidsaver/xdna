@@ -1,6 +1,6 @@
 /** @file axi_testing.vh
  *
- * Test client for AXI4-LITE modules using IVerilog
+ * Test client for AXI modules using IVerilog
  *
  * Selection from the 0 or 1 signal ordering variations using:
  * @code
@@ -76,7 +76,7 @@ initial begin
     if($value$plusargs("axiproto=%d", proto)) begin end
     $display("# Using AXI master protocol variant %d", proto);
     if(proto<0 || proto>1) begin
-        $display("$  Invalid variant");
+        $display("Bail out! Error Invalid variant");
         $stop;
     end
 end
@@ -88,7 +88,7 @@ always @(posedge ACLK) begin
     if(ARVALID && ARREADY && RVALID) begin
         // "the slave must wait for both ARVALID and ARREADY to be asserted before
         // it asserts RVALID to indicate that valid data is available"
-        $display("  axi_read premature RVALID");
+        $display("Bail out! Error axi_read premature RVALID");
         $stop;
     end
     if(ARVALID && ARREADY) begin
@@ -108,9 +108,9 @@ end
 
 reg wdone = 1;
 always @(posedge ACLK) begin
-    if(WVALID && WREADY && BVALID) begin
+    if(AWVALID && AWREADY && BVALID) begin
         // "the slave must wait for both WVALID and WREADY to be asserted before asserting BVALID"
-        $display("  axi_write premature BVALID");
+        $display("Bail out! Error axi_write premature BVALID");
         $stop;
     end
     if(AWVALID && AWREADY) begin
@@ -137,7 +137,7 @@ task read_mask;
     input [31:0] mask;
     input [31:0] expected;
 begin
-    $display("axi_reading 0x%x, mask 0x%x, expecting 0x%x", addr, mask, expected);
+    $display("# axi_reading 0x%x, mask 0x%x, expecting 0x%x", addr, mask, expected);
 
     @(negedge ACLK);
 
@@ -147,20 +147,20 @@ begin
 
     case(axi.proto)
     0: axi.rdone <= 0;
-    1: RREADY <= 1; // "the master can assert RREADY before RVALID is asserted."
+    1: RREADY <= 1;
     endcase
 
     @(posedge ACLK);
     while(~(RVALID && RREADY))
         @(posedge ACLK);
 
-    $display("  axi_read 0x%x, mask 0x%x, expected 0x%x, found 0x%x",
+    $display("# axi_read 0x%x, mask 0x%x, expected 0x%x, found 0x%x",
         addr, mask, expected, RDATA);
     if((RDATA&mask)!==(expected&mask)) begin
-        $display("  Mis-match! 0x%x !== 0x%x", RDATA&mask, expected&mask);
+        $display("Bail out! RDATA Mis-match 0x%x !== 0x%x", RDATA&mask, expected&mask);
         $stop;
     end else begin
-        $display("  Ok");
+        $display("# Ok");
     end
 end
 endtask
@@ -194,7 +194,7 @@ begin
 
     case(axi.proto)
     0:axi.wdone <= 0;
-    1:BREADY <= 1; // "the master can assert BREADY before BVALID is asserted."
+    1:BREADY <= 1;
     endcase
 
     @(posedge ACLK);
@@ -202,7 +202,7 @@ begin
         @(posedge ACLK);
 
     if(BRESP!=0) begin
-        $display("  Error! %x", BRESP);
+        $display("Bail out!  Error BRESP %x", BRESP);
         $stop;
     end else begin
         $display("  Ok");
