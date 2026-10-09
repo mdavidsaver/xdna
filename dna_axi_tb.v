@@ -5,9 +5,6 @@ module test;
 
 always #5 ACLK <= ~ACLK;
 
-wire [56:0] DNA;
-wire DNA_READY;
-
 dna_axi #(
     .SIM_DNA_VALUE(57'h24ec844c05e854)
 ) dut (
